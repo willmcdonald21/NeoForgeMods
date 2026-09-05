@@ -1,0 +1,11 @@
+{
+  "itemGroup.villagerpaths": "Villager Paths",
+  "item.villagerpaths.path_marker": "Path Marker",
+
+  "villagerpaths.configuration.title": "Villager Paths Configs",
+  "villagerpaths.configuration.section.villagerpaths.common.toml": "Villager Paths Configs",
+  "villagerpaths.configuration.section.villagerpaths.common.toml.title": "Villager Paths Configs",
+  "villagerpaths.configuration.scheduleStartTime": "Schedule Start Tick",
+  "villagerpaths.configuration.scheduleEndTime": "Schedule End Tick",
+  "villagerpaths.configuration.pathFollowSpeed": "Path Follow Speed"
+}

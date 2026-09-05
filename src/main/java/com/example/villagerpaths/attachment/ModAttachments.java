@@ -1,0 +1,20 @@
+package com.example.villagerpaths.attachment;
+
+import java.util.function.Supplier;
+
+import net.neoforged.neoforge.attachment.AttachmentType;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.NeoForgeRegistries;
+
+import com.example.villagerpaths.VillagerPathsMod;
+
+public class ModAttachments {
+    public static final DeferredRegister<AttachmentType<?>> ATTACHMENT_TYPES =
+            DeferredRegister.create(NeoForgeRegistries.ATTACHMENT_TYPES, VillagerPathsMod.MODID);
+
+    public static final Supplier<AttachmentType<VillagerPathData>> VILLAGER_PATH = ATTACHMENT_TYPES.register(
+            "villager_path",
+            () -> AttachmentType.builder(() -> VillagerPathData.EMPTY)
+                    .serialize(VillagerPathData.CODEC)
+                    .build());
+}
