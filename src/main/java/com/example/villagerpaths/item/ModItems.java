@@ -13,4 +13,9 @@ public class ModItems {
             "path_marker",
             PathMarkerItem::new,
             new Item.Properties().stacksTo(1));
+
+    public static final DeferredItem<DestinationMarkerItem> DESTINATION_MARKER = ITEMS.registerItem(
+            "destination_marker",
+            DestinationMarkerItem::new,
+            new Item.Properties().stacksTo(1));
 }

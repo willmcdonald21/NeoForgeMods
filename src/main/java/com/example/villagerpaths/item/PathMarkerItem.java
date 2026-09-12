@@ -1,10 +1,7 @@
 package com.example.villagerpaths.item;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.Optional;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -18,16 +15,16 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 
 import com.example.villagerpaths.attachment.ModAttachments;
+import com.example.villagerpaths.attachment.PathStep;
 import com.example.villagerpaths.attachment.VillagerPathData;
 
 /**
  * Right-click a villager to start/finish linking a path to it; right-click ground
- * blocks in between to drop waypoints in order. Linking state is transient
- * (in-memory only, per player) and is not persisted across a server restart.
+ * blocks in between to drop waypoints in order, or use the Destination Marker to
+ * add a linger zone. Linking state is transient (in-memory only, per player) and
+ * is not persisted across a server restart.
  */
 public class PathMarkerItem extends Item {
-    private static final Map<UUID, LinkingSession> ACTIVE_SESSIONS = new HashMap<>();
-
     public PathMarkerItem(Properties properties) {
         super(properties);
     }
@@ -41,23 +38,23 @@ public class PathMarkerItem extends Item {
             return InteractionResult.PASS;
         }
 
-        LinkingSession session = ACTIVE_SESSIONS.get(player.getUUID());
+        PathLinkingSession session = PathLinkingSessions.get(player.getUUID());
 
-        if (session == null || !session.villagerId.equals(villager.getUUID())) {
-            ACTIVE_SESSIONS.put(player.getUUID(), new LinkingSession(villager.getUUID()));
+        if (session == null || !session.villagerId().equals(villager.getUUID())) {
+            PathLinkingSessions.start(player.getUUID(), villager.getUUID());
             player.displayClientMessage(Component.literal(
-                    "Linking path: right-click ground to add waypoints, sneak + right-click this villager to save."), true);
+                    "Linking path: right-click ground to add waypoints, use a Destination Marker to add a linger zone, sneak + right-click this villager to save."), true);
             return InteractionResult.CONSUME;
         }
 
         if (player.isShiftKeyDown()) {
-            ACTIVE_SESSIONS.remove(player.getUUID());
-            if (session.waypoints.isEmpty()) {
+            PathLinkingSessions.end(player.getUUID());
+            if (session.steps().isEmpty()) {
                 player.displayClientMessage(Component.literal("No waypoints added; path not saved."), true);
             } else {
-                villager.setData(ModAttachments.VILLAGER_PATH.get(), new VillagerPathData(List.copyOf(session.waypoints), 0));
+                villager.setData(ModAttachments.VILLAGER_PATH.get(), new VillagerPathData(List.copyOf(session.steps()), 0, 0L, Optional.empty()));
                 player.displayClientMessage(Component.literal(
-                        "Path saved with " + session.waypoints.size() + " waypoint(s)."), true);
+                        "Path saved with " + session.steps().size() + " step(s)."), true);
             }
             return InteractionResult.CONSUME;
         }
@@ -75,23 +72,14 @@ public class PathMarkerItem extends Item {
         if (player == null) {
             return InteractionResult.PASS;
         }
-        LinkingSession session = ACTIVE_SESSIONS.get(player.getUUID());
+        PathLinkingSession session = PathLinkingSessions.get(player.getUUID());
         if (session == null) {
             return InteractionResult.PASS;
         }
 
         BlockPos pos = context.getClickedPos().above();
-        session.waypoints.add(pos);
-        player.displayClientMessage(Component.literal("Waypoint " + session.waypoints.size() + " added."), true);
+        session.steps().add(PathStep.waypoint(pos));
+        player.displayClientMessage(Component.literal("Waypoint " + session.steps().size() + " added."), true);
         return InteractionResult.CONSUME;
-    }
-
-    private static final class LinkingSession {
-        private final UUID villagerId;
-        private final List<BlockPos> waypoints = new ArrayList<>();
-
-        private LinkingSession(UUID villagerId) {
-            this.villagerId = villagerId;
-        }
     }
 }

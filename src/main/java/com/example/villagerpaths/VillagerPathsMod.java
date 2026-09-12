@@ -31,7 +31,10 @@ public class VillagerPathsMod {
                     .title(Component.translatable("itemGroup.villagerpaths"))
                     .withTabsBefore(CreativeModeTabs.COMBAT)
                     .icon(() -> ModItems.PATH_MARKER.get().getDefaultInstance())
-                    .displayItems((parameters, output) -> output.accept(ModItems.PATH_MARKER.get()))
+                    .displayItems((parameters, output) -> {
+                        output.accept(ModItems.PATH_MARKER.get());
+                        output.accept(ModItems.DESTINATION_MARKER.get());
+                    })
                     .build());
 
     public VillagerPathsMod(IEventBus modEventBus, ModContainer modContainer) {

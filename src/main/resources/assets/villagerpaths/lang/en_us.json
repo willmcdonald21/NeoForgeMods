@@ -1,9 +1,12 @@
 {
   "itemGroup.villagerpaths": "Villager Paths",
   "item.villagerpaths.path_marker": "Path Marker",
+  "item.villagerpaths.destination_marker": "Destination Marker",
 
   "villagerpaths.configuration.title": "Villager Paths Configs",
   "villagerpaths.configuration.section.villagerpaths.common.toml": "Villager Paths Configs",
   "villagerpaths.configuration.section.villagerpaths.common.toml.title": "Villager Paths Configs",
-  "villagerpaths.configuration.pathFollowSpeed": "Path Follow Speed"
+  "villagerpaths.configuration.pathFollowSpeed": "Path Follow Speed",
+  "villagerpaths.configuration.lingerMinSeconds": "Minimum Linger Seconds",
+  "villagerpaths.configuration.lingerMaxSeconds": "Maximum Linger Seconds"
 }
