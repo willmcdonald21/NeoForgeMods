@@ -17,4 +17,10 @@ public class ModAttachments {
             () -> AttachmentType.builder(() -> VillagerPathData.EMPTY)
                     .serialize(VillagerPathData.CODEC)
                     .build());
+
+    public static final Supplier<AttachmentType<VillagerHomeData>> VILLAGER_HOME = ATTACHMENT_TYPES.register(
+            "villager_home",
+            () -> AttachmentType.builder(() -> VillagerHomeData.EMPTY)
+                    .serialize(VillagerHomeData.CODEC)
+                    .build());
 }

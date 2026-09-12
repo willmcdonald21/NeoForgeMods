@@ -2,6 +2,7 @@
   "itemGroup.villagerpaths": "Villager Paths",
   "item.villagerpaths.path_marker": "Path Marker",
   "item.villagerpaths.destination_marker": "Destination Marker",
+  "item.villagerpaths.home_marker": "Home Marker",
 
   "villagerpaths.configuration.title": "Villager Paths Configs",
   "villagerpaths.configuration.section.villagerpaths.common.toml": "Villager Paths Configs",
