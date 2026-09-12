@@ -1,6 +1,5 @@
 package com.example.villagerpaths.ai;
 
-import java.util.List;
 import java.util.Optional;
 
 import net.minecraft.core.BlockPos;
@@ -18,13 +17,13 @@ import com.example.villagerpaths.VillagerPathsMod;
 import com.example.villagerpaths.attachment.ModAttachments;
 import com.example.villagerpaths.attachment.NamedPath;
 import com.example.villagerpaths.attachment.PathLibraries;
-import com.example.villagerpaths.attachment.PathStep;
 import com.example.villagerpaths.attachment.VillagerPathData;
 import com.example.villagerpaths.attachment.Zone;
 
 @EventBusSubscriber(modid = VillagerPathsMod.MODID)
 public class VillagerPathTicker {
     private static final double ARRIVE_DISTANCE_SQ = 2.5 * 2.5;
+    private static final int ZONE_PICK_CHANCE_PERCENT = 90;
 
     @SubscribeEvent
     public static void onEntityTick(EntityTickEvent.Post event) {
@@ -42,44 +41,70 @@ public class VillagerPathTicker {
         }
 
         ServerLevel serverLevel = (ServerLevel) villager.level();
-        Optional<NamedPath> namedPath = PathLibraries.get(serverLevel.getServer()).find(data.pathId().get());
-        if (namedPath.isEmpty() || namedPath.get().steps().isEmpty()) {
+        Optional<NamedPath> namedPathOpt = PathLibraries.get(serverLevel.getServer()).find(data.pathId().get());
+        if (namedPathOpt.isEmpty()) {
             return;
         }
-        List<PathStep> steps = namedPath.get().steps();
+        NamedPath namedPath = namedPathOpt.get();
+        if (namedPath.networkTiles().isEmpty() && namedPath.zones().isEmpty()) {
+            return;
+        }
 
         long gameTime = villager.level().getGameTime();
-        PathStep step = steps.get(data.currentIndex() % steps.size());
 
-        if (data.lingerUntil() > gameTime) {
-            wanderInZone(villager, data, step, gameTime);
-            return;
-        }
-        if (data.lingerUntil() != 0L) {
-            // Linger just expired; move on to the next step.
-            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.advanced(steps.size()));
+        if (data.currentGoal().isEmpty()) {
+            pickNewGoal(villager, data, namedPath);
             return;
         }
 
-        BlockPos anchor = step.anchor();
-        if (villager.blockPosition().distSqr(anchor) <= ARRIVE_DISTANCE_SQ) {
-            if (step.lingerZone().isPresent()) {
-                long lingerDuration = randomLingerTicks(villager.getRandom());
-                villager.setData(ModAttachments.VILLAGER_PATH.get(), data.lingeringUntil(gameTime + lingerDuration));
-            } else {
-                villager.setData(ModAttachments.VILLAGER_PATH.get(), data.advanced(steps.size()));
+        if (data.busyUntil() > gameTime) {
+            if (data.zoneIndex() >= 0 && data.zoneIndex() < namedPath.zones().size()) {
+                wanderInZone(villager, data, namedPath.zones().get(data.zoneIndex()), gameTime);
             }
+            // Otherwise it's a brief pause at a plain road tile - just stand still.
+            return;
+        }
+        if (data.busyUntil() != 0L) {
+            // Busy period just ended; pick the next goal.
+            pickNewGoal(villager, data, namedPath);
             return;
         }
 
-        moveTowards(villager, anchor);
+        BlockPos goal = data.currentGoal().get();
+        if (villager.blockPosition().distSqr(goal) <= ARRIVE_DISTANCE_SQ) {
+            boolean isZoneGoal = data.zoneIndex() >= 0;
+            long duration = isZoneGoal ? randomLingerTicks(villager.getRandom()) : randomWanderPauseTicks(villager.getRandom());
+            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.arrivedAt(gameTime + duration));
+            return;
+        }
+
+        moveTowards(villager, goal);
+    }
+
+    /** 90% of the time head to a random destination zone; otherwise wander to a random road tile. */
+    private static void pickNewGoal(Villager villager, VillagerPathData data, NamedPath namedPath) {
+        RandomSource random = villager.getRandom();
+        boolean hasZones = !namedPath.zones().isEmpty();
+        boolean hasTiles = !namedPath.networkTiles().isEmpty();
+
+        boolean pickZone = hasZones && (!hasTiles || random.nextInt(100) < ZONE_PICK_CHANCE_PERCENT);
+
+        if (pickZone) {
+            int index = random.nextInt(namedPath.zones().size());
+            Zone zone = namedPath.zones().get(index);
+            BlockPos target = zone.randomPointInside(random);
+            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.travelingTo(target, index));
+        } else if (hasTiles) {
+            BlockPos target = namedPath.networkTiles().get(random.nextInt(namedPath.networkTiles().size()));
+            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.travelingTo(target, -1));
+        }
     }
 
     /**
-     * While lingering, alternates between walking to a random point in the zone and
-     * standing still there for a short random pause before picking the next point.
+     * While lingering in a zone, alternates between walking to a random point in it
+     * and standing still there for a short random pause before picking the next point.
      */
-    private static void wanderInZone(Villager villager, VillagerPathData data, PathStep step, long gameTime) {
+    private static void wanderInZone(Villager villager, VillagerPathData data, Zone zone, long gameTime) {
         if (data.wanderPauseUntil() > gameTime) {
             return; // standing still, pause not yet over
         }
@@ -89,13 +114,9 @@ public class VillagerPathTicker {
 
         // No target yet, or a pause just ended: pick somewhere new to walk to.
         if (wanderTarget == null || data.wanderPauseUntil() != 0L) {
-            Zone zone = step.lingerZone().orElseThrow();
-            Optional<BlockPos> newTarget = zone.randomPointInside(villager.getRandom(), villager.level());
-            if (newTarget.isEmpty()) {
-                return; // no block matching the palette right now; stand still and retry next tick
-            }
-            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.wanderingTowards(newTarget.get()));
-            navigation.moveTo(newTarget.get().getX() + 0.5, newTarget.get().getY(), newTarget.get().getZ() + 0.5, Config.PATH_FOLLOW_SPEED.get());
+            BlockPos newTarget = zone.randomPointInside(villager.getRandom());
+            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.wanderingTowards(newTarget));
+            navigation.moveTo(newTarget.getX() + 0.5, newTarget.getY(), newTarget.getZ() + 0.5, Config.PATH_FOLLOW_SPEED.get());
             return;
         }
 

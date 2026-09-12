@@ -58,7 +58,7 @@ public final class ModNetworking {
             MinecraftServer server = serverPlayer.getServer();
             PathLibrary library = PathLibraries.get(server);
             library.find(payload.pathId()).ifPresent(named -> {
-                NamedPath renamed = new NamedPath(named.id(), trimmed, named.steps());
+                NamedPath renamed = new NamedPath(named.id(), trimmed, named.palette(), named.networkTiles(), named.zones());
                 PathLibraries.save(server, library.withPath(renamed));
             });
         });

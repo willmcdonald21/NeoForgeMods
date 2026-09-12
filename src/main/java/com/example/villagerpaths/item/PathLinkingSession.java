@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import com.example.villagerpaths.attachment.PathStep;
+import com.example.villagerpaths.attachment.Zone;
 
-/** In-progress path being built for one villager by one player. Transient, in-memory only. */
+/** In-progress network path being built for one villager by one player. Transient, in-memory only. */
 public class PathLinkingSession {
     private final UUID villagerId;
-    private final List<PathStep> steps = new ArrayList<>();
+    private final List<Zone> zones = new ArrayList<>();
 
     PathLinkingSession(UUID villagerId) {
         this.villagerId = villagerId;
@@ -19,7 +19,7 @@ public class PathLinkingSession {
         return villagerId;
     }
 
-    public List<PathStep> steps() {
-        return steps;
+    public List<Zone> zones() {
+        return zones;
     }
 }

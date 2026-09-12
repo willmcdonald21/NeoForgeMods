@@ -12,14 +12,13 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.context.UseOnContext;
 
-import com.example.villagerpaths.attachment.PathStep;
 import com.example.villagerpaths.attachment.Zone;
 
 /**
  * Right-click a block to place the first zone corner (a live outline previews the
  * box out to wherever you're looking), then right-click again to lock in the
  * opposite corner. Only works while a Path Marker linking session is active for
- * this player, and appends the resulting zone as the next step of that path.
+ * this player, and adds the resulting zone to that path.
  */
 public class DestinationMarkerItem extends Item {
     private static final Map<UUID, BlockPos> PENDING_CORNERS = new HashMap<>();
@@ -66,8 +65,8 @@ public class DestinationMarkerItem extends Item {
         } else {
             PENDING_CORNERS.remove(player.getUUID());
             Zone zone = Zone.fromCorners(context.getLevel(), pending, clicked);
-            session.steps().add(PathStep.destination(zone.corner1(), zone));
-            player.displayClientMessage(Component.literal("Destination zone added as step " + session.steps().size() + "."), true);
+            session.zones().add(zone);
+            player.displayClientMessage(Component.literal("Destination zone added (" + session.zones().size() + " total)."), true);
         }
         return InteractionResult.CONSUME;
     }
