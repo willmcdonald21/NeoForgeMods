@@ -39,7 +39,7 @@ public class VillagerPathTicker {
         PathStep step = data.currentStep();
 
         if (data.lingerUntil() > gameTime) {
-            wanderInZone(villager, data, step);
+            wanderInZone(villager, data, step, gameTime);
             return;
         }
         if (data.lingerUntil() != 0L) {
@@ -51,10 +51,8 @@ public class VillagerPathTicker {
         BlockPos anchor = step.anchor();
         if (villager.blockPosition().distSqr(anchor) <= ARRIVE_DISTANCE_SQ) {
             if (step.lingerZone().isPresent()) {
-                Zone zone = step.lingerZone().get();
-                BlockPos firstTarget = zone.randomPointInside(villager.getRandom());
                 long lingerDuration = randomLingerTicks(villager.getRandom());
-                villager.setData(ModAttachments.VILLAGER_PATH.get(), data.lingeringUntil(gameTime + lingerDuration, firstTarget));
+                villager.setData(ModAttachments.VILLAGER_PATH.get(), data.lingeringUntil(gameTime + lingerDuration));
             } else {
                 villager.setData(ModAttachments.VILLAGER_PATH.get(), data.advanced());
             }
@@ -64,15 +62,31 @@ public class VillagerPathTicker {
         moveTowards(villager, anchor);
     }
 
-    private static void wanderInZone(Villager villager, VillagerPathData data, PathStep step) {
-        Zone zone = step.lingerZone().orElseThrow();
+    /**
+     * While lingering, alternates between walking to a random point in the zone and
+     * standing still there for a short random pause before picking the next point.
+     */
+    private static void wanderInZone(Villager villager, VillagerPathData data, PathStep step, long gameTime) {
+        if (data.wanderPauseUntil() > gameTime) {
+            return; // standing still, pause not yet over
+        }
+
         PathNavigation navigation = villager.getNavigation();
         BlockPos wanderTarget = data.wanderTarget().orElse(null);
 
-        if (wanderTarget == null || navigation.isDone()) {
+        // No target yet, or a pause just ended: pick somewhere new to walk to.
+        if (wanderTarget == null || data.wanderPauseUntil() != 0L) {
+            Zone zone = step.lingerZone().orElseThrow();
             BlockPos newTarget = zone.randomPointInside(villager.getRandom());
-            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.withWanderTarget(newTarget));
+            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.wanderingTowards(newTarget));
             navigation.moveTo(newTarget.getX() + 0.5, newTarget.getY(), newTarget.getZ() + 0.5, Config.PATH_FOLLOW_SPEED.get());
+            return;
+        }
+
+        if (navigation.isDone()) {
+            // Arrived: stand here for a short random pause before moving again.
+            long pauseDuration = randomWanderPauseTicks(villager.getRandom());
+            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.pausingUntil(gameTime + pauseDuration));
             return;
         }
 
@@ -92,6 +106,13 @@ public class VillagerPathTicker {
     private static long randomLingerTicks(RandomSource random) {
         int min = Config.LINGER_MIN_SECONDS.get();
         int max = Math.max(min, Config.LINGER_MAX_SECONDS.get());
+        int seconds = max > min ? min + random.nextInt(max - min + 1) : min;
+        return seconds * 20L;
+    }
+
+    private static long randomWanderPauseTicks(RandomSource random) {
+        int min = Config.WANDER_PAUSE_MIN_SECONDS.get();
+        int max = Math.max(min, Config.WANDER_PAUSE_MAX_SECONDS.get());
         int seconds = max > min ? min + random.nextInt(max - min + 1) : min;
         return seconds * 20L;
     }

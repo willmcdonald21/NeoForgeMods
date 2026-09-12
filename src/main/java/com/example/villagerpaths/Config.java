@@ -17,5 +17,13 @@ public class Config {
             .comment("Maximum time (in seconds) a villager lingers in a destination zone before continuing its path.")
             .defineInRange("lingerMaxSeconds", 60, 0, 3600);
 
+    public static final ModConfigSpec.IntValue WANDER_PAUSE_MIN_SECONDS = BUILDER
+            .comment("Minimum time (in seconds) a villager stands still between random movements while lingering in a destination zone.")
+            .defineInRange("wanderPauseMinSeconds", 3, 0, 600);
+
+    public static final ModConfigSpec.IntValue WANDER_PAUSE_MAX_SECONDS = BUILDER
+            .comment("Maximum time (in seconds) a villager stands still between random movements while lingering in a destination zone.")
+            .defineInRange("wanderPauseMaxSeconds", 10, 0, 600);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 }

@@ -8,14 +8,21 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.BlockPos;
 
-public record VillagerPathData(List<PathStep> steps, int currentIndex, long lingerUntil, Optional<BlockPos> wanderTarget) {
-    public static final VillagerPathData EMPTY = new VillagerPathData(List.of(), 0, 0L, Optional.empty());
+public record VillagerPathData(
+        List<PathStep> steps,
+        int currentIndex,
+        long lingerUntil,
+        Optional<BlockPos> wanderTarget,
+        long wanderPauseUntil
+) {
+    public static final VillagerPathData EMPTY = new VillagerPathData(List.of(), 0, 0L, Optional.empty(), 0L);
 
     public static final Codec<VillagerPathData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             PathStep.CODEC.listOf().fieldOf("steps").forGetter(VillagerPathData::steps),
             Codec.INT.fieldOf("currentIndex").forGetter(VillagerPathData::currentIndex),
             Codec.LONG.fieldOf("lingerUntil").forGetter(VillagerPathData::lingerUntil),
-            BlockPos.CODEC.optionalFieldOf("wanderTarget").forGetter(VillagerPathData::wanderTarget)
+            BlockPos.CODEC.optionalFieldOf("wanderTarget").forGetter(VillagerPathData::wanderTarget),
+            Codec.LONG.fieldOf("wanderPauseUntil").forGetter(VillagerPathData::wanderPauseUntil)
     ).apply(instance, VillagerPathData::new));
 
     public boolean hasPath() {
@@ -27,14 +34,18 @@ public record VillagerPathData(List<PathStep> steps, int currentIndex, long ling
     }
 
     public VillagerPathData advanced() {
-        return new VillagerPathData(steps, (currentIndex + 1) % steps.size(), 0L, Optional.empty());
+        return new VillagerPathData(steps, (currentIndex + 1) % steps.size(), 0L, Optional.empty(), 0L);
     }
 
-    public VillagerPathData lingeringUntil(long gameTime, BlockPos initialWanderTarget) {
-        return new VillagerPathData(steps, currentIndex, gameTime, Optional.of(initialWanderTarget));
+    public VillagerPathData lingeringUntil(long gameTime) {
+        return new VillagerPathData(steps, currentIndex, gameTime, Optional.empty(), 0L);
     }
 
-    public VillagerPathData withWanderTarget(BlockPos target) {
-        return new VillagerPathData(steps, currentIndex, lingerUntil, Optional.of(target));
+    public VillagerPathData wanderingTowards(BlockPos target) {
+        return new VillagerPathData(steps, currentIndex, lingerUntil, Optional.of(target), 0L);
+    }
+
+    public VillagerPathData pausingUntil(long gameTime) {
+        return new VillagerPathData(steps, currentIndex, lingerUntil, wanderTarget, gameTime);
     }
 }

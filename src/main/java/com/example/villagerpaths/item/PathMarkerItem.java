@@ -52,7 +52,7 @@ public class PathMarkerItem extends Item {
             if (session.steps().isEmpty()) {
                 player.displayClientMessage(Component.literal("No waypoints added; path not saved."), true);
             } else {
-                villager.setData(ModAttachments.VILLAGER_PATH.get(), new VillagerPathData(List.copyOf(session.steps()), 0, 0L, Optional.empty()));
+                villager.setData(ModAttachments.VILLAGER_PATH.get(), new VillagerPathData(List.copyOf(session.steps()), 0, 0L, Optional.empty(), 0L));
                 player.displayClientMessage(Component.literal(
                         "Path saved with " + session.steps().size() + " step(s)."), true);
             }
