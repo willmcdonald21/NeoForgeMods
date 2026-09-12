@@ -1,6 +1,8 @@
 package com.example.villagerpaths.ai;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.entity.schedule.Activity;
 import net.minecraft.world.entity.npc.Villager;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -25,26 +27,22 @@ public class VillagerPathTicker {
         }
 
         VillagerPathData data = villager.getData(ModAttachments.VILLAGER_PATH.get());
-        if (!data.hasPath() || !isInScheduleWindow(villager.level().getDayTime())) {
+        // Defer to vanilla behavior once the villager is heading to/in bed for the night.
+        if (!data.hasPath() || villager.getBrain().isActive(Activity.REST)) {
             return;
         }
 
         BlockPos target = data.currentWaypoint();
-        if (villager.getNavigation().isDone()) {
-            villager.getNavigation().moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, Config.PATH_FOLLOW_SPEED.get());
-        }
         if (villager.blockPosition().distSqr(target) <= ARRIVE_DISTANCE_SQ) {
             villager.setData(ModAttachments.VILLAGER_PATH.get(), data.advanced());
+            return;
         }
-    }
 
-    private static boolean isInScheduleWindow(long dayTime) {
-        long time = dayTime % 24000;
-        long start = Config.SCHEDULE_START_TIME.get();
-        long end = Config.SCHEDULE_END_TIME.get();
-        if (start <= end) {
-            return time >= start && time < end;
+        // Vanilla brain behaviors (wandering, socializing, etc.) also set a nav target most
+        // ticks, so re-assert ours whenever something else has taken over navigation.
+        PathNavigation navigation = villager.getNavigation();
+        if (!target.equals(navigation.getTargetPos())) {
+            navigation.moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, Config.PATH_FOLLOW_SPEED.get());
         }
-        return time >= start || time < end;
     }
 }
