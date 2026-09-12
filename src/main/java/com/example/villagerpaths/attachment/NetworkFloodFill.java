@@ -3,8 +3,11 @@ package com.example.villagerpaths.attachment;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.core.BlockPos;
@@ -82,5 +85,81 @@ public final class NetworkFloodFill {
 
     private static boolean matches(Level level, BlockPos point, Set<Block> palette) {
         return palette.contains(level.getBlockState(point.below()).getBlock());
+    }
+
+    /** Finds the tile in the network closest to the given position (straight-line distance). */
+    public static BlockPos nearestTile(List<BlockPos> tiles, BlockPos from) {
+        BlockPos best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (BlockPos tile : tiles) {
+            double dist = tile.distSqr(from);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = tile;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Finds the shortest hop-by-hop path from one network tile to another, stepping only
+     * across tiles that are actually in the network - never off it. Returns an empty list
+     * if either endpoint isn't a network tile or they're not connected.
+     */
+    public static List<BlockPos> route(List<BlockPos> tiles, BlockPos from, BlockPos to) {
+        Set<Long> tileSet = new HashSet<>();
+        for (BlockPos tile : tiles) {
+            tileSet.add(tile.asLong());
+        }
+        if (!tileSet.contains(from.asLong()) || !tileSet.contains(to.asLong())) {
+            return List.of();
+        }
+
+        Map<Long, BlockPos> cameFrom = new HashMap<>();
+        Deque<BlockPos> queue = new ArrayDeque<>();
+        queue.add(from);
+        cameFrom.put(from.asLong(), null);
+
+        while (!queue.isEmpty()) {
+            BlockPos current = queue.poll();
+            if (current.equals(to)) {
+                break;
+            }
+            for (BlockPos neighbor : geometricNeighbors(current, tileSet)) {
+                long key = neighbor.asLong();
+                if (!cameFrom.containsKey(key)) {
+                    cameFrom.put(key, current);
+                    queue.add(neighbor);
+                }
+            }
+        }
+
+        if (!cameFrom.containsKey(to.asLong())) {
+            return List.of();
+        }
+
+        LinkedList<BlockPos> path = new LinkedList<>();
+        BlockPos step = to;
+        while (step != null) {
+            path.addFirst(step);
+            step = cameFrom.get(step.asLong());
+        }
+        return path;
+    }
+
+    /** Same adjacency rule as the flood fill itself, but checked against the stored tile set instead of the live world. */
+    private static List<BlockPos> geometricNeighbors(BlockPos from, Set<Long> tileSet) {
+        List<BlockPos> found = new ArrayList<>(4);
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] dir : dirs) {
+            for (int dy = 1; dy >= -1; dy--) {
+                BlockPos candidate = from.offset(dir[0], dy, dir[1]);
+                if (tileSet.contains(candidate.asLong())) {
+                    found.add(candidate);
+                    break;
+                }
+            }
+        }
+        return found;
     }
 }

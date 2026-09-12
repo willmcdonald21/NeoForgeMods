@@ -12,10 +12,13 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
+import java.util.List;
+
 import com.example.villagerpaths.Config;
 import com.example.villagerpaths.VillagerPathsMod;
 import com.example.villagerpaths.attachment.ModAttachments;
 import com.example.villagerpaths.attachment.NamedPath;
+import com.example.villagerpaths.attachment.NetworkFloodFill;
 import com.example.villagerpaths.attachment.PathLibraries;
 import com.example.villagerpaths.attachment.VillagerPathData;
 import com.example.villagerpaths.attachment.Zone;
@@ -23,6 +26,7 @@ import com.example.villagerpaths.attachment.Zone;
 @EventBusSubscriber(modid = VillagerPathsMod.MODID)
 public class VillagerPathTicker {
     private static final double ARRIVE_DISTANCE_SQ = 2.5 * 2.5;
+    private static final double HOP_ARRIVE_DISTANCE_SQ = 1.2 * 1.2;
     private static final int ZONE_PICK_CHANCE_PERCENT = 90;
 
     @SubscribeEvent
@@ -70,6 +74,18 @@ public class VillagerPathTicker {
             return;
         }
 
+        // Walk the network hop by hop first, so travel never cuts across blocks outside the palette.
+        if (!data.route().isEmpty()) {
+            BlockPos hop = data.route().get(0);
+            if (villager.blockPosition().distSqr(hop) <= HOP_ARRIVE_DISTANCE_SQ) {
+                villager.setData(ModAttachments.VILLAGER_PATH.get(), data.advancedRoute());
+                return;
+            }
+            moveTowards(villager, hop);
+            return;
+        }
+
+        // Route (if any) is exhausted; make the final approach to the goal itself.
         BlockPos goal = data.currentGoal().get();
         if (villager.blockPosition().distSqr(goal) <= ARRIVE_DISTANCE_SQ) {
             boolean isZoneGoal = data.zoneIndex() >= 0;
@@ -89,15 +105,38 @@ public class VillagerPathTicker {
 
         boolean pickZone = hasZones && (!hasTiles || random.nextInt(100) < ZONE_PICK_CHANCE_PERCENT);
 
+        BlockPos target;
+        int zoneIndex;
         if (pickZone) {
-            int index = random.nextInt(namedPath.zones().size());
-            Zone zone = namedPath.zones().get(index);
-            BlockPos target = zone.randomPointInside(random);
-            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.travelingTo(target, index));
+            zoneIndex = random.nextInt(namedPath.zones().size());
+            target = namedPath.zones().get(zoneIndex).randomPointInside(random);
         } else if (hasTiles) {
-            BlockPos target = namedPath.networkTiles().get(random.nextInt(namedPath.networkTiles().size()));
-            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.travelingTo(target, -1));
+            zoneIndex = -1;
+            target = namedPath.networkTiles().get(random.nextInt(namedPath.networkTiles().size()));
+        } else {
+            return;
         }
+
+        List<BlockPos> route = buildRoute(namedPath.networkTiles(), villager.blockPosition(), target);
+        villager.setData(ModAttachments.VILLAGER_PATH.get(), data.travelingTo(target, zoneIndex, route));
+    }
+
+    /**
+     * Finds the network tiles nearest the villager and the target, then routes between
+     * them across the network graph. The very first/last leg (current position to the
+     * network, or the network to a point inside a zone) is a short direct walk, since
+     * that connecting gap isn't itself part of the mapped network.
+     */
+    private static List<BlockPos> buildRoute(List<BlockPos> networkTiles, BlockPos from, BlockPos to) {
+        if (networkTiles.isEmpty()) {
+            return List.of();
+        }
+        BlockPos nearestToStart = NetworkFloodFill.nearestTile(networkTiles, from);
+        BlockPos nearestToTarget = NetworkFloodFill.nearestTile(networkTiles, to);
+        if (nearestToStart == null || nearestToTarget == null) {
+            return List.of();
+        }
+        return NetworkFloodFill.route(networkTiles, nearestToStart, nearestToTarget);
     }
 
     /**
