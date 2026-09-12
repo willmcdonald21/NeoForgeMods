@@ -23,4 +23,10 @@ public class ModAttachments {
             () -> AttachmentType.builder(() -> VillagerHomeData.EMPTY)
                     .serialize(VillagerHomeData.CODEC)
                     .build());
+
+    public static final Supplier<AttachmentType<PathLibrary>> PATH_LIBRARY = ATTACHMENT_TYPES.register(
+            "path_library",
+            () -> AttachmentType.builder(() -> PathLibrary.EMPTY)
+                    .serialize(PathLibrary.CODEC)
+                    .build());
 }

@@ -17,6 +17,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 import com.example.villagerpaths.attachment.ModAttachments;
 import com.example.villagerpaths.item.ModItems;
+import com.example.villagerpaths.network.ModNetworking;
 
 @Mod(VillagerPathsMod.MODID)
 public class VillagerPathsMod {
@@ -42,6 +43,7 @@ public class VillagerPathsMod {
         ModItems.ITEMS.register(modEventBus);
         ModAttachments.ATTACHMENT_TYPES.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
+        modEventBus.addListener(ModNetworking::registerServerbound);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }

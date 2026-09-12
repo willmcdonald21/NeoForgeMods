@@ -1,6 +1,10 @@
 package com.example.villagerpaths.ai;
 
+import java.util.List;
+import java.util.Optional;
+
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.npc.Villager;
@@ -12,6 +16,8 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import com.example.villagerpaths.Config;
 import com.example.villagerpaths.VillagerPathsMod;
 import com.example.villagerpaths.attachment.ModAttachments;
+import com.example.villagerpaths.attachment.NamedPath;
+import com.example.villagerpaths.attachment.PathLibraries;
 import com.example.villagerpaths.attachment.PathStep;
 import com.example.villagerpaths.attachment.VillagerPathData;
 import com.example.villagerpaths.attachment.Zone;
@@ -31,12 +37,19 @@ public class VillagerPathTicker {
 
         VillagerPathData data = villager.getData(ModAttachments.VILLAGER_PATH.get());
         // Defer to vanilla behavior once the villager is heading to/in bed for the night.
-        if (!data.hasPath() || villager.getBrain().isActive(Activity.REST)) {
+        if (data.pathId().isEmpty() || villager.getBrain().isActive(Activity.REST)) {
             return;
         }
 
+        ServerLevel serverLevel = (ServerLevel) villager.level();
+        Optional<NamedPath> namedPath = PathLibraries.get(serverLevel.getServer()).find(data.pathId().get());
+        if (namedPath.isEmpty() || namedPath.get().steps().isEmpty()) {
+            return;
+        }
+        List<PathStep> steps = namedPath.get().steps();
+
         long gameTime = villager.level().getGameTime();
-        PathStep step = data.currentStep();
+        PathStep step = steps.get(data.currentIndex() % steps.size());
 
         if (data.lingerUntil() > gameTime) {
             wanderInZone(villager, data, step, gameTime);
@@ -44,7 +57,7 @@ public class VillagerPathTicker {
         }
         if (data.lingerUntil() != 0L) {
             // Linger just expired; move on to the next step.
-            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.advanced());
+            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.advanced(steps.size()));
             return;
         }
 
@@ -54,7 +67,7 @@ public class VillagerPathTicker {
                 long lingerDuration = randomLingerTicks(villager.getRandom());
                 villager.setData(ModAttachments.VILLAGER_PATH.get(), data.lingeringUntil(gameTime + lingerDuration));
             } else {
-                villager.setData(ModAttachments.VILLAGER_PATH.get(), data.advanced());
+                villager.setData(ModAttachments.VILLAGER_PATH.get(), data.advanced(steps.size()));
             }
             return;
         }

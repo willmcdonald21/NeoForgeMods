@@ -1,10 +1,12 @@
 package com.example.villagerpaths.item;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
@@ -15,6 +17,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 
 import com.example.villagerpaths.attachment.ModAttachments;
+import com.example.villagerpaths.attachment.NamedPath;
+import com.example.villagerpaths.attachment.PathLibraries;
+import com.example.villagerpaths.attachment.PathLibrary;
 import com.example.villagerpaths.attachment.PathStep;
 import com.example.villagerpaths.attachment.VillagerPathData;
 
@@ -52,9 +57,15 @@ public class PathMarkerItem extends Item {
             if (session.steps().isEmpty()) {
                 player.displayClientMessage(Component.literal("No waypoints added; path not saved."), true);
             } else {
-                villager.setData(ModAttachments.VILLAGER_PATH.get(), new VillagerPathData(List.copyOf(session.steps()), 0, 0L, Optional.empty(), 0L));
+                MinecraftServer server = ((ServerLevel) player.level()).getServer();
+                PathLibrary library = PathLibraries.get(server);
+                UUID pathId = UUID.randomUUID();
+                String name = "Path " + (library.paths().size() + 1);
+                PathLibraries.save(server, library.withPath(new NamedPath(pathId, name, List.copyOf(session.steps()))));
+
+                villager.setData(ModAttachments.VILLAGER_PATH.get(), VillagerPathData.assigned(pathId));
                 player.displayClientMessage(Component.literal(
-                        "Path saved with " + session.steps().size() + " step(s)."), true);
+                        "Saved \"" + name + "\" with " + session.steps().size() + " step(s)."), true);
             }
             return InteractionResult.CONSUME;
         }
