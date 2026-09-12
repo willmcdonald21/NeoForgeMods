@@ -23,4 +23,9 @@ public class ModItems {
             "home_marker",
             HomeMarkerItem::new,
             new Item.Properties().stacksTo(1));
+
+    public static final DeferredItem<PaletteToolItem> PALETTE_TOOL = ITEMS.registerItem(
+            "palette_tool",
+            PaletteToolItem::new,
+            new Item.Properties().stacksTo(1));
 }

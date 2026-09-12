@@ -36,6 +36,7 @@ public class VillagerPathsMod {
                         output.accept(ModItems.PATH_MARKER.get());
                         output.accept(ModItems.DESTINATION_MARKER.get());
                         output.accept(ModItems.HOME_MARKER.get());
+                        output.accept(ModItems.PALETTE_TOOL.get());
                     })
                     .build());
 

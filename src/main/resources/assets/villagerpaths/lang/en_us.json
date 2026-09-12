@@ -3,6 +3,7 @@
   "item.villagerpaths.path_marker": "Path Marker",
   "item.villagerpaths.destination_marker": "Destination Marker",
   "item.villagerpaths.home_marker": "Home Marker",
+  "item.villagerpaths.palette_tool": "Palette Tool",
 
   "villagerpaths.configuration.title": "Villager Paths Configs",
   "villagerpaths.configuration.section.villagerpaths.common.toml": "Villager Paths Configs",

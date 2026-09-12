@@ -90,9 +90,12 @@ public class VillagerPathTicker {
         // No target yet, or a pause just ended: pick somewhere new to walk to.
         if (wanderTarget == null || data.wanderPauseUntil() != 0L) {
             Zone zone = step.lingerZone().orElseThrow();
-            BlockPos newTarget = zone.randomPointInside(villager.getRandom());
-            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.wanderingTowards(newTarget));
-            navigation.moveTo(newTarget.getX() + 0.5, newTarget.getY(), newTarget.getZ() + 0.5, Config.PATH_FOLLOW_SPEED.get());
+            Optional<BlockPos> newTarget = zone.randomPointInside(villager.getRandom(), villager.level());
+            if (newTarget.isEmpty()) {
+                return; // no block matching the palette right now; stand still and retry next tick
+            }
+            villager.setData(ModAttachments.VILLAGER_PATH.get(), data.wanderingTowards(newTarget.get()));
+            navigation.moveTo(newTarget.get().getX() + 0.5, newTarget.get().getY(), newTarget.get().getZ() + 0.5, Config.PATH_FOLLOW_SPEED.get());
             return;
         }
 
