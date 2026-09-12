@@ -65,8 +65,8 @@ public class DestinationMarkerItem extends Item {
             player.displayClientMessage(Component.literal("Zone corner set. Right-click the opposite corner to finish."), true);
         } else {
             PENDING_CORNERS.remove(player.getUUID());
-            Zone zone = new Zone(pending, clicked);
-            session.steps().add(PathStep.destination(pending, zone));
+            Zone zone = Zone.fromCorners(context.getLevel(), pending, clicked);
+            session.steps().add(PathStep.destination(zone.corner1(), zone));
             player.displayClientMessage(Component.literal("Destination zone added as step " + session.steps().size() + "."), true);
         }
         return InteractionResult.CONSUME;
