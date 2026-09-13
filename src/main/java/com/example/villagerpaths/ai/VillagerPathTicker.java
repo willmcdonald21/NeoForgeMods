@@ -30,7 +30,6 @@ import com.example.villagerpaths.attachment.ZoneLibrary;
 public class VillagerPathTicker {
     private static final double ARRIVE_DISTANCE_SQ = 2.5 * 2.5;
     private static final double HOP_ARRIVE_DISTANCE_SQ = 1.2 * 1.2;
-    private static final int ZONE_PICK_CHANCE_PERCENT = 90;
 
     @SubscribeEvent
     public static void onEntityTick(EntityTickEvent.Post event) {
@@ -86,7 +85,11 @@ public class VillagerPathTicker {
                 villager.setData(ModAttachments.VILLAGER_PATH.get(), data.advancedRoute());
                 return;
             }
-            moveTowards(villager, hop);
+            if (!pursue(villager, hop)) {
+                // Hop is temporarily unreachable (obstructed, etc.) - skip it rather than
+                // stalling, which would otherwise leave vanilla AI free to wander elsewhere.
+                villager.setData(ModAttachments.VILLAGER_PATH.get(), data.advancedRoute());
+            }
             return;
         }
 
@@ -99,10 +102,14 @@ public class VillagerPathTicker {
             return;
         }
 
-        moveTowards(villager, goal);
+        pursue(villager, goal);
     }
 
-    /** 90% of the time head to a random destination zone; otherwise wander to a random road tile. */
+    /**
+     * Cycles through the path's destination zones in a constant loop, in order, so the
+     * villager's daytime routine is a predictable circuit rather than a random pick each
+     * time. Only falls back to a random road tile when the path has no destinations at all.
+     */
     private static void pickNewGoal(Villager villager, VillagerPathData data, NamedPath namedPath, ZoneLibrary zoneLibrary) {
         RandomSource random = villager.getRandom();
 
@@ -114,12 +121,18 @@ public class VillagerPathTicker {
             return;
         }
 
-        boolean pickZone = hasZones && (!hasTiles || random.nextInt(100) < ZONE_PICK_CHANCE_PERCENT);
-
         BlockPos target;
         Optional<UUID> zoneId;
-        if (pickZone) {
-            NamedZone namedZone = zones.get(random.nextInt(zones.size()));
+        if (hasZones) {
+            int previousIndex = data.zoneId().map(id -> {
+                for (int i = 0; i < zones.size(); i++) {
+                    if (zones.get(i).id().equals(id)) {
+                        return i;
+                    }
+                }
+                return -1;
+            }).orElse(-1);
+            NamedZone namedZone = zones.get((previousIndex + 1) % zones.size());
             zoneId = Optional.of(namedZone.id());
             target = namedZone.shape().randomPointInside(random);
         } else {
@@ -182,11 +195,18 @@ public class VillagerPathTicker {
         }
     }
 
-    private static void moveTowards(Villager villager, BlockPos target) {
+    /**
+     * Ensures navigation is actively heading to the target, retrying if vanilla brain
+     * behaviors derailed it or it stalled out short of arriving. Returns false if no path
+     * to the target could be found at all, so callers can react (e.g. skip an obstructed hop)
+     * instead of leaving the villager idle for other AI to take over.
+     */
+    private static boolean pursue(Villager villager, BlockPos target) {
         PathNavigation navigation = villager.getNavigation();
-        if (!target.equals(navigation.getTargetPos())) {
-            navigation.moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, Config.PATH_FOLLOW_SPEED.get());
+        if (target.equals(navigation.getTargetPos()) && !navigation.isDone()) {
+            return true;
         }
+        return navigation.moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, Config.PATH_FOLLOW_SPEED.get());
     }
 
     private static long randomLingerTicks(RandomSource random) {

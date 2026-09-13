@@ -17,6 +17,7 @@ import com.example.villagerpaths.VillagerPathsMod;
 import com.example.villagerpaths.attachment.ModAttachments;
 import com.example.villagerpaths.attachment.PathLibraries;
 import com.example.villagerpaths.attachment.PathLibrary;
+import com.example.villagerpaths.attachment.VillagerHomeData;
 import com.example.villagerpaths.attachment.VillagerPathData;
 import com.example.villagerpaths.network.OpenVillagerPathScreenPayload;
 import com.example.villagerpaths.network.PathRef;
@@ -55,6 +56,7 @@ public class VillagerInteractionHandler {
             allPaths.add(new PathRef(named.id(), named.name()));
         }
 
-        PacketDistributor.sendToPlayer(serverPlayer, new OpenVillagerPathScreenPayload(villager.getId(), assigned, allPaths));
+        VillagerHomeData home = villager.getData(ModAttachments.VILLAGER_HOME.get());
+        PacketDistributor.sendToPlayer(serverPlayer, new OpenVillagerPathScreenPayload(villager.getId(), assigned, allPaths, home.bed().isPresent()));
     }
 }

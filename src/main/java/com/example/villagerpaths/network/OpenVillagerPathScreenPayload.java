@@ -12,7 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import com.example.villagerpaths.VillagerPathsMod;
 
 /** Server -> client: tells the client to open the villager path screen with this data. */
-public record OpenVillagerPathScreenPayload(int villagerEntityId, Optional<PathRef> assigned, List<PathRef> allPaths) implements CustomPacketPayload {
+public record OpenVillagerPathScreenPayload(int villagerEntityId, Optional<PathRef> assigned, List<PathRef> allPaths, boolean hasHomeBed) implements CustomPacketPayload {
     public static final Type<OpenVillagerPathScreenPayload> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath(VillagerPathsMod.MODID, "open_villager_path_screen"));
 
@@ -20,6 +20,7 @@ public record OpenVillagerPathScreenPayload(int villagerEntityId, Optional<PathR
             ByteBufCodecs.VAR_INT, OpenVillagerPathScreenPayload::villagerEntityId,
             ByteBufCodecs.optional(PathRef.STREAM_CODEC), OpenVillagerPathScreenPayload::assigned,
             PathRef.STREAM_CODEC.apply(ByteBufCodecs.list()), OpenVillagerPathScreenPayload::allPaths,
+            ByteBufCodecs.BOOL, OpenVillagerPathScreenPayload::hasHomeBed,
             OpenVillagerPathScreenPayload::new
     );
 

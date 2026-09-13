@@ -2,6 +2,7 @@ package com.example.villagerpaths.network;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import net.minecraft.network.chat.Component;
@@ -17,10 +18,12 @@ import com.example.villagerpaths.attachment.ModAttachments;
 import com.example.villagerpaths.attachment.NamedPath;
 import com.example.villagerpaths.attachment.PathLibraries;
 import com.example.villagerpaths.attachment.PathLibrary;
+import com.example.villagerpaths.attachment.VillagerHomeData;
 import com.example.villagerpaths.attachment.VillagerPathData;
 import com.example.villagerpaths.attachment.ZoneLibraries;
 import com.example.villagerpaths.attachment.ZoneLibrary;
 import com.example.villagerpaths.item.DestinationMarkerItem;
+import com.example.villagerpaths.item.HomeBedRequests;
 
 /** Common (server-bound) payload registration and handling. */
 public final class ModNetworking {
@@ -37,6 +40,8 @@ public final class ModNetworking {
         registrar.playToServer(ArmZoneReshapePayload.TYPE, ArmZoneReshapePayload.STREAM_CODEC, ModNetworking::handleArmReshape);
         registrar.playToServer(AddZoneToPathPayload.TYPE, AddZoneToPathPayload.STREAM_CODEC, ModNetworking::handleAddZoneToPath);
         registrar.playToServer(RemoveZoneFromPathPayload.TYPE, RemoveZoneFromPathPayload.STREAM_CODEC, ModNetworking::handleRemoveZoneFromPath);
+        registrar.playToServer(RequestHomeBedPayload.TYPE, RequestHomeBedPayload.STREAM_CODEC, ModNetworking::handleRequestHomeBed);
+        registrar.playToServer(ClearHomeBedPayload.TYPE, ClearHomeBedPayload.STREAM_CODEC, ModNetworking::handleClearHomeBed);
     }
 
     private static void handleAssign(AssignPathPayload payload, IPayloadContext context) {
@@ -165,6 +170,30 @@ public final class ModNetworking {
                 newZoneIds.remove(payload.zoneId());
                 PathLibraries.save(server, library.withPath(path.withZoneIds(newZoneIds)));
             });
+        });
+    }
+
+    private static void handleRequestHomeBed(RequestHomeBedPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer serverPlayer)) {
+                return;
+            }
+            HomeBedRequests.request(serverPlayer.getUUID(), payload.villagerEntityId());
+            serverPlayer.displayClientMessage(Component.literal(
+                    "Shift + right-click a bed to assign it as this villager's home."), true);
+        });
+    }
+
+    private static void handleClearHomeBed(ClearHomeBedPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer serverPlayer)) {
+                return;
+            }
+            Entity entity = serverPlayer.level().getEntity(payload.villagerEntityId());
+            if (!(entity instanceof Villager villager)) {
+                return;
+            }
+            villager.setData(ModAttachments.VILLAGER_HOME.get(), new VillagerHomeData(Optional.empty()));
         });
     }
 }
