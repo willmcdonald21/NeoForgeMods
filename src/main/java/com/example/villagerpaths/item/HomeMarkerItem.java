@@ -20,6 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import com.example.villagerpaths.attachment.ModAttachments;
 import com.example.villagerpaths.attachment.VillagerHomeData;
+import com.example.villagerpaths.util.BedUtil;
 
 /**
  * Right-click a bed to select it, then shift + right-click a villager to assign
@@ -50,7 +51,7 @@ public class HomeMarkerItem extends Item {
             return InteractionResult.CONSUME;
         }
 
-        PENDING_BEDS.put(player.getUUID(), pos);
+        PENDING_BEDS.put(player.getUUID(), BedUtil.normalizeToHeadPart(context.getLevel(), pos));
         player.displayClientMessage(Component.literal("Bed selected. Shift + right-click a villager to assign it as their home."), true);
         return InteractionResult.CONSUME;
     }

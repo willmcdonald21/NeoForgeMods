@@ -2,6 +2,7 @@ package com.example.villagerpaths.event;
 
 import java.util.Optional;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
@@ -18,6 +19,7 @@ import com.example.villagerpaths.VillagerPathsMod;
 import com.example.villagerpaths.attachment.ModAttachments;
 import com.example.villagerpaths.attachment.VillagerHomeData;
 import com.example.villagerpaths.item.HomeBedRequests;
+import com.example.villagerpaths.util.BedUtil;
 
 /**
  * Fulfills a pending "Set Home Bed" request (started from the Villager Path screen) the
@@ -57,7 +59,8 @@ public class HomeBedSelectionHandler {
             return;
         }
 
-        villager.setData(ModAttachments.VILLAGER_HOME.get(), new VillagerHomeData(Optional.of(event.getPos())));
+        BlockPos headPos = BedUtil.normalizeToHeadPart(event.getLevel(), event.getPos());
+        villager.setData(ModAttachments.VILLAGER_HOME.get(), new VillagerHomeData(Optional.of(headPos)));
         serverPlayer.displayClientMessage(Component.literal("Assigned home bed to this villager."), true);
     }
 }
