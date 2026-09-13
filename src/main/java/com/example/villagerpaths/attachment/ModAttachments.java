@@ -29,4 +29,10 @@ public class ModAttachments {
             () -> AttachmentType.builder(() -> PathLibrary.EMPTY)
                     .serialize(PathLibrary.CODEC)
                     .build());
+
+    public static final Supplier<AttachmentType<ZoneLibrary>> ZONE_LIBRARY = ATTACHMENT_TYPES.register(
+            "zone_library",
+            () -> AttachmentType.builder(() -> ZoneLibrary.EMPTY)
+                    .serialize(ZoneLibrary.CODEC)
+                    .build());
 }

@@ -1,6 +1,8 @@
 package com.example.villagerpaths.ai;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -12,16 +14,17 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
-import java.util.List;
-
 import com.example.villagerpaths.Config;
 import com.example.villagerpaths.VillagerPathsMod;
 import com.example.villagerpaths.attachment.ModAttachments;
 import com.example.villagerpaths.attachment.NamedPath;
+import com.example.villagerpaths.attachment.NamedZone;
 import com.example.villagerpaths.attachment.NetworkFloodFill;
 import com.example.villagerpaths.attachment.PathLibraries;
 import com.example.villagerpaths.attachment.VillagerPathData;
 import com.example.villagerpaths.attachment.Zone;
+import com.example.villagerpaths.attachment.ZoneLibraries;
+import com.example.villagerpaths.attachment.ZoneLibrary;
 
 @EventBusSubscriber(modid = VillagerPathsMod.MODID)
 public class VillagerPathTicker {
@@ -50,27 +53,29 @@ public class VillagerPathTicker {
             return;
         }
         NamedPath namedPath = namedPathOpt.get();
-        if (namedPath.networkTiles().isEmpty() && namedPath.zones().isEmpty()) {
+        if (namedPath.networkTiles().isEmpty() && namedPath.zoneIds().isEmpty()) {
             return;
         }
 
+        ZoneLibrary zoneLibrary = ZoneLibraries.get(serverLevel.getServer());
         long gameTime = villager.level().getGameTime();
 
         if (data.currentGoal().isEmpty()) {
-            pickNewGoal(villager, data, namedPath);
+            pickNewGoal(villager, data, namedPath, zoneLibrary);
             return;
         }
 
         if (data.busyUntil() > gameTime) {
-            if (data.zoneIndex() >= 0 && data.zoneIndex() < namedPath.zones().size()) {
-                wanderInZone(villager, data, namedPath.zones().get(data.zoneIndex()), gameTime);
+            if (data.zoneId().isPresent()) {
+                zoneLibrary.find(data.zoneId().get())
+                        .ifPresent(namedZone -> wanderInZone(villager, data, namedZone.shape(), gameTime));
             }
             // Otherwise it's a brief pause at a plain road tile - just stand still.
             return;
         }
         if (data.busyUntil() != 0L) {
             // Busy period just ended; pick the next goal.
-            pickNewGoal(villager, data, namedPath);
+            pickNewGoal(villager, data, namedPath, zoneLibrary);
             return;
         }
 
@@ -88,7 +93,7 @@ public class VillagerPathTicker {
         // Route (if any) is exhausted; make the final approach to the goal itself.
         BlockPos goal = data.currentGoal().get();
         if (villager.blockPosition().distSqr(goal) <= ARRIVE_DISTANCE_SQ) {
-            boolean isZoneGoal = data.zoneIndex() >= 0;
+            boolean isZoneGoal = data.zoneId().isPresent();
             long duration = isZoneGoal ? randomLingerTicks(villager.getRandom()) : randomWanderPauseTicks(villager.getRandom());
             villager.setData(ModAttachments.VILLAGER_PATH.get(), data.arrivedAt(gameTime + duration));
             return;
@@ -98,27 +103,32 @@ public class VillagerPathTicker {
     }
 
     /** 90% of the time head to a random destination zone; otherwise wander to a random road tile. */
-    private static void pickNewGoal(Villager villager, VillagerPathData data, NamedPath namedPath) {
+    private static void pickNewGoal(Villager villager, VillagerPathData data, NamedPath namedPath, ZoneLibrary zoneLibrary) {
         RandomSource random = villager.getRandom();
-        boolean hasZones = !namedPath.zones().isEmpty();
+
+        List<NamedZone> zones = namedPath.zoneIds().stream().map(zoneLibrary::find)
+                .filter(Optional::isPresent).map(Optional::get).toList();
+        boolean hasZones = !zones.isEmpty();
         boolean hasTiles = !namedPath.networkTiles().isEmpty();
+        if (!hasZones && !hasTiles) {
+            return;
+        }
 
         boolean pickZone = hasZones && (!hasTiles || random.nextInt(100) < ZONE_PICK_CHANCE_PERCENT);
 
         BlockPos target;
-        int zoneIndex;
+        Optional<UUID> zoneId;
         if (pickZone) {
-            zoneIndex = random.nextInt(namedPath.zones().size());
-            target = namedPath.zones().get(zoneIndex).randomPointInside(random);
-        } else if (hasTiles) {
-            zoneIndex = -1;
-            target = namedPath.networkTiles().get(random.nextInt(namedPath.networkTiles().size()));
+            NamedZone namedZone = zones.get(random.nextInt(zones.size()));
+            zoneId = Optional.of(namedZone.id());
+            target = namedZone.shape().randomPointInside(random);
         } else {
-            return;
+            zoneId = Optional.empty();
+            target = namedPath.networkTiles().get(random.nextInt(namedPath.networkTiles().size()));
         }
 
         List<BlockPos> route = buildRoute(namedPath.networkTiles(), villager.blockPosition(), target);
-        villager.setData(ModAttachments.VILLAGER_PATH.get(), data.travelingTo(target, zoneIndex, route));
+        villager.setData(ModAttachments.VILLAGER_PATH.get(), data.travelingTo(target, zoneId, route));
     }
 
     /**

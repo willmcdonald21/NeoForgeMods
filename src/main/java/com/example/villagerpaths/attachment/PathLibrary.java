@@ -36,4 +36,14 @@ public record PathLibrary(List<NamedPath> paths) {
         }
         return new PathLibrary(List.copyOf(next));
     }
+
+    public PathLibrary withoutPath(UUID id) {
+        List<NamedPath> next = new ArrayList<>(paths.size());
+        for (NamedPath existing : paths) {
+            if (!existing.id().equals(id)) {
+                next.add(existing);
+            }
+        }
+        return new PathLibrary(List.copyOf(next));
+    }
 }
