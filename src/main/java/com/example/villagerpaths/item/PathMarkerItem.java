@@ -50,11 +50,14 @@ public class PathMarkerItem extends Item {
 
     @Override
     public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity interactionTarget, InteractionHand usedHand) {
-        if (player.level().isClientSide() || usedHand != InteractionHand.MAIN_HAND) {
+        if (usedHand != InteractionHand.MAIN_HAND || !(interactionTarget instanceof Villager villager)) {
             return InteractionResult.PASS;
         }
-        if (!(interactionTarget instanceof Villager villager)) {
-            return InteractionResult.PASS;
+        if (player.level().isClientSide()) {
+            // Real logic is server-only, but we must still report a consuming result here -
+            // otherwise the client treats this as unhandled and also fires Item#use(),
+            // which would incorrectly pop open the Path Manager screen on a villager target.
+            return InteractionResult.SUCCESS;
         }
 
         PathLinkingSession session = PathLinkingSessions.get(player.getUUID());

@@ -3,6 +3,8 @@ package com.example.villagerpaths.ai;
 import java.util.Optional;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.schedule.Activity;
@@ -38,6 +40,15 @@ public class VillagerHomeTicker {
         if (bed.isEmpty()) {
             return;
         }
+        BlockPos bedPos = bed.get();
+
+        // Vanilla's own brain still tracks a separately-claimed home bed and will keep
+        // trying to walk there unless its memory agrees with our assignment - otherwise
+        // it fights our navigation even after we've already put the villager to sleep.
+        GlobalPos globalBed = GlobalPos.of(villager.level().dimension(), bedPos);
+        if (villager.getBrain().getMemory(MemoryModuleType.HOME).map(current -> !current.equals(globalBed)).orElse(true)) {
+            villager.getBrain().setMemory(MemoryModuleType.HOME, globalBed);
+        }
 
         boolean resting = villager.getBrain().isActive(Activity.REST);
         if (!resting) {
@@ -47,10 +58,11 @@ public class VillagerHomeTicker {
             return;
         }
         if (villager.isSleeping()) {
+            // Belt-and-suspenders: stop any movement vanilla still tries to apply this tick.
+            villager.getNavigation().stop();
             return;
         }
 
-        BlockPos bedPos = bed.get();
         if (villager.blockPosition().distSqr(bedPos) <= BED_ARRIVE_DISTANCE_SQ) {
             villager.startSleeping(bedPos);
             return;

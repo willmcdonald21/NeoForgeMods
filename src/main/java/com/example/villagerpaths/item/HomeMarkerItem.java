@@ -57,11 +57,13 @@ public class HomeMarkerItem extends Item {
 
     @Override
     public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity interactionTarget, InteractionHand usedHand) {
-        if (player.level().isClientSide() || usedHand != InteractionHand.MAIN_HAND || !player.isShiftKeyDown()) {
+        if (usedHand != InteractionHand.MAIN_HAND || !player.isShiftKeyDown() || !(interactionTarget instanceof Villager villager)) {
             return InteractionResult.PASS;
         }
-        if (!(interactionTarget instanceof Villager villager)) {
-            return InteractionResult.PASS;
+        if (player.level().isClientSide()) {
+            // Real logic is server-only, but report a consuming result so the client doesn't
+            // also treat this as unhandled and fall back to opening the trade GUI or similar.
+            return InteractionResult.SUCCESS;
         }
 
         BlockPos bed = PENDING_BEDS.remove(player.getUUID());
