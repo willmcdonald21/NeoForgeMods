@@ -10,6 +10,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.schedule.Activity;
+import net.minecraft.world.level.pathfinder.Path;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
@@ -197,16 +198,21 @@ public class VillagerPathTicker {
 
     /**
      * Ensures navigation is actively heading to the target, retrying if vanilla brain
-     * behaviors derailed it or it stalled out short of arriving. Returns false if no path
-     * to the target could be found at all, so callers can react (e.g. skip an obstructed hop)
-     * instead of leaving the villager idle for other AI to take over.
+     * behaviors derailed it or it stalled out short of arriving. Returns false if the target
+     * is actually unreachable (no path at all, or the pathfinder could only get partway - e.g.
+     * blocked by an obstruction), so callers can react (e.g. skip an obstructed hop) instead
+     * of leaving the villager stuck repeatedly walking up against it.
      */
     private static boolean pursue(Villager villager, BlockPos target) {
         PathNavigation navigation = villager.getNavigation();
         if (target.equals(navigation.getTargetPos()) && !navigation.isDone()) {
             return true;
         }
-        return navigation.moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, Config.PATH_FOLLOW_SPEED.get());
+        if (!navigation.moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, Config.PATH_FOLLOW_SPEED.get())) {
+            return false;
+        }
+        Path path = navigation.getPath();
+        return path != null && target.equals(path.getTarget());
     }
 
     private static long randomLingerTicks(RandomSource random) {

@@ -13,6 +13,8 @@ import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.state.BlockState;
 
 /** Flood-fills outward from a seed point across every horizontally-connected tile whose surface block matches a palette. */
 public final class NetworkFloodFill {
@@ -83,8 +85,26 @@ public final class NetworkFloodFill {
         return null;
     }
 
+    /**
+     * A palette floor tile only counts as part of the network if a villager can actually
+     * stand there - otherwise the network can include tiles buried under a wall or other
+     * solid obstruction, sending villagers to walk straight into it instead of routing
+     * around (or, for a doorway, simply through - doors are always considered passable
+     * since vanilla mobs already open closed ones as they approach).
+     */
     private static boolean matches(Level level, BlockPos point, Set<Block> palette) {
-        return palette.contains(level.getBlockState(point.below()).getBlock());
+        if (!palette.contains(level.getBlockState(point.below()).getBlock())) {
+            return false;
+        }
+        return isPassable(level, point) && isPassable(level, point.above());
+    }
+
+    private static boolean isPassable(Level level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (state.getBlock() instanceof DoorBlock) {
+            return true;
+        }
+        return state.getCollisionShape(level, pos).isEmpty();
     }
 
     /** Finds the tile in the network closest to the given position (straight-line distance). */
