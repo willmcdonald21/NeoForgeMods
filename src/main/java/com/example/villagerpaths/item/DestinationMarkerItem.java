@@ -30,11 +30,13 @@ import net.neoforged.neoforge.network.PacketDistributor;
 /**
  * Right-click a block to place the first zone corner (a live outline previews the
  * box out to wherever you're looking), then right-click again to lock in the
- * opposite corner. Normally requires an active Path Marker linking session and
- * adds a brand new destination to that path; if a destination is currently armed
- * for reshaping (via the Destination Manager screen), the same two clicks instead
- * update that destination's shape in place. Shift + right-click with nothing in
- * reach opens the Destination Manager screen.
+ * opposite corner and create a new destination. If a Path Marker linking session
+ * is active, the new destination is also attached to that path automatically;
+ * otherwise it's created standalone and can be attached to any path later from
+ * the Path Manager. If a destination is currently armed for reshaping (via the
+ * Destination Manager screen), the same two clicks instead update that
+ * destination's shape in place. Shift + right-click with nothing in reach opens
+ * the Destination Manager screen.
  */
 public class DestinationMarkerItem extends Item {
     private static final Map<UUID, BlockPos> PENDING_CORNERS = new HashMap<>();
@@ -95,11 +97,10 @@ public class DestinationMarkerItem extends Item {
             return InteractionResult.CONSUME;
         }
 
+        // A linking session is optional: if one's active, the new destination is also
+        // attached to that path automatically. Without one, it's just created standalone
+        // and can be attached to any path afterward from the Path Manager's Add dropdown.
         PathLinkingSession session = PathLinkingSessions.get(player.getUUID());
-        if (session == null) {
-            player.displayClientMessage(Component.literal("Link a villager with the Path Marker first."), true);
-            return InteractionResult.CONSUME;
-        }
 
         if (pending == null) {
             PENDING_CORNERS.put(player.getUUID(), clicked);
@@ -114,9 +115,14 @@ public class DestinationMarkerItem extends Item {
             String name = "Destination " + (library.zones().size() + 1);
             ZoneLibraries.save(server, library.withZone(new NamedZone(zoneId, name, shape)));
 
-            session.zoneIds().add(zoneId);
-            player.displayClientMessage(Component.literal(
-                    "Destination \"" + name + "\" added (" + session.zoneIds().size() + " total)."), true);
+            if (session != null) {
+                session.zoneIds().add(zoneId);
+                player.displayClientMessage(Component.literal(
+                        "Destination \"" + name + "\" added (" + session.zoneIds().size() + " total)."), true);
+            } else {
+                player.displayClientMessage(Component.literal(
+                        "Destination \"" + name + "\" created. Add it to a path from the Path Manager."), true);
+            }
         }
         return InteractionResult.CONSUME;
     }
